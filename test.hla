@@ -1,0 +1,23 @@
+global _start
+bruh:
+db "bruh", 0xa
+yee:
+db "yee", 0xa
+_start:
+xor edi, edi
+loop:
+mov eax, 4
+mov edx, 5
+mov ecx, bruh
+mov ebx, 1
+int 0x80
+inc edi
+cmp edi, 5
+jne loop
+mov eax, 4
+mov edx, 4
+mov ecx, yee
+mov ebx, 1
+int 0x80
+mov eax, 1
+int 0x80
