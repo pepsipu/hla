@@ -104,3 +104,6 @@ There are many obscure instructions or instructions that are simple enough that 
 To do this, simple prefix the instruction with an exclamation mark. For example:
 
 `!hlt` or `!cli` or `!int 0x80`
+
+## Compiling Code
+The code HLA generates is for NASM, though it should work for any Intel syntax based assembler. The `make.sh` script can be used to compile the code HLA outputs.
