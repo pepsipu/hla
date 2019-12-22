@@ -9,7 +9,8 @@ pub enum Registers {
     ESI,
     EDI,
     ESP,
-    EBP
+    EBP,
+    None
 }
 
 #[derive(Debug)]
@@ -31,7 +32,8 @@ pub struct Condition {
 #[derive(Debug)]
 pub enum Jump {
     Je(String, Condition),
-    Jne(String, Condition)
+    Jne(String, Condition),
+    Jmp(String)
 }
 
 #[derive(Debug)]
@@ -45,6 +47,7 @@ pub enum Operator {
 pub enum Assignee {
     Register(Registers),
     MemoryAddress(u32, Registers),
+    Label(String, Registers)
 }
 
 #[derive(Debug)]

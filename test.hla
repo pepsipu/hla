@@ -1,23 +1,35 @@
-global _start
-bruh:
-db "bruh", 0xa
-yee:
-db "yee", 0xa
-_start:
-xor edi, edi
-loop:
-mov eax, 4
-mov edx, 5
-mov ecx, bruh
-mov ebx, 1
-int 0x80
-inc edi
-cmp edi, 5
-jne loop
-mov eax, 4
-mov edx, 4
-mov ecx, yee
-mov ebx, 1
-int 0x80
-mov eax, 1
-int 0x80
+; define a label called hello
+hello:
+; pass through the following statement to NASM via exclamation mark
+const "hello", 0xa
+
+; define a label called goodbye
+goodbye:
+; pass through the following statement to NASM via exclamation mark
+const "goodbye", 0xa
+
+; define a global label (label that the linker can recognize) called _start by prepending "@"
+@_start:
+    ; create a counter to check how many iterations we've done so far
+    $esi = 0
+    ; set file descriptor to stdout
+    $ebx = 1
+    ; set string to pointer to hello
+    $ecx = hello
+    ; set write length to length of hello + newline
+    $edx = 6
+    ; define sub label within label. They generally begin with "." for syntactic purposes
+    .print_hello:
+    ; set eax to sys_write
+    $eax = 4
+    ; raise interrupt 0x80 to call the kernel
+    !int 0x80
+    $esi++
+    goto .print_hello if ($esi != 5)
+    $eax = 4
+    $ecx = goodbye
+    $edx = 9
+    !int 0x80
+    $eax = 1
+    $ebx = 0
+    !int 0x80

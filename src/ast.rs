@@ -18,5 +18,7 @@ pub enum Statement {
     Assignment(structures::Assignment),
     Jump(structures::Jump),
     Increment(structures::Registers),
+    Constant(String),
+    Reserve(u32),
     None
 }

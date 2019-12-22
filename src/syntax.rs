@@ -46,6 +46,12 @@ named!(mem_write<&str, (&str, &str)>,
     )
 );
 
+named!(resv<&str, u32>,
+    do_parse!(
+
+    )
+);
+
 pub fn match_register_str(register: &str) -> Registers {
     match register {
         "eax" => Registers::EAX,
@@ -70,7 +76,7 @@ pub fn get_value(data: Data) -> String {
         }
         Data::Uint(uint) => {
             uint.to_string()
-        },
+        }
         Data::Label(label) => {
             label
         }
@@ -91,6 +97,9 @@ pub fn match_register_enum(register: Registers) -> &'static str {
         Registers::EDI => "edi",
         Registers::ESP => "esp",
         Registers::EBP => "ebp",
+        Registers::None => {
+            println!("register cannot be none")
+        }
     }
 }
 
@@ -125,9 +134,8 @@ pub fn parse_value(string_value: &str) -> Data {
                     Data::None
                 }
             }
-        }
+        };
     }
-
 }
 
 pub fn parse_assign(assignment: &str) -> Assignment {
@@ -136,8 +144,24 @@ pub fn parse_assign(assignment: &str) -> Assignment {
     let assignee: Assignee = match string_token {
         "$" => Assignee::Register(match_register_str(string_assignment)),
         "*" => {
-            let (address, register) = mem_write(&string_assignment).unwrap().1;
-            Assignee::MemoryAddress(parse_numerical(&address).unwrap(), match_register_str(register))
+            let labels = crate::LABELS.lock().unwrap();
+            let str_value = String::from(&string_assignment[1..]);
+            if labels.contains(&str_value) {
+                if str_value.contains("$") {
+                    let (label, register) = mem_write(&string_assignment).unwrap().1;
+                    Assignee::Label(String::from(label), match_register_str(register))
+                } else {
+                    Assignee::Label(str_value, Registers::None)
+                }
+            } else {
+                if string_assignment.contains("$") {
+                    let (address, register) = mem_write(&string_assignment).unwrap().1;
+                    Assignee::MemoryAddress(parse_numerical(&address).unwrap(), match_register_str(register))
+
+                } else {
+                    Assignee::MemoryAddress(parse_numerical(&string_assignment).unwrap(), Registers::None)
+                }
+            }
         }
         _ => exit(4)
     };
@@ -154,7 +178,6 @@ pub fn parse(statement: &str) -> Option<ast::Module> {
         } else {
             Some(ast::Module::Statement(ast::Statement::Assignment(parse_assign(statement))))
         }
-
     } else if statement.ends_with(":") {
         if statement.starts_with("@") {
             let label = String::from(&statement[1..statement.len() - 1]);
@@ -166,25 +189,35 @@ pub fn parse(statement: &str) -> Option<ast::Module> {
             Some(ast::Module::Label(label, false))
         }
     } else if statement.starts_with("goto ") {
-        let (label, condition) = jmp(statement).unwrap().1;
-        let expression = format!("{}\0", &condition);
-        let (comparison, register, value) = cond(&expression).unwrap().1;
-        Some(ast::Module::Statement(ast::Statement::Jump(match comparison {
-            "!=" => Jump::Jne(String::from(label), Condition {
-                register: match_register_str(&register[1..]),
-                value: parse_value(value)
-            }),
-            "==" => Jump::Je(String::from(label), Condition {
-                register: match_register_str(&register[1..]),
-                value: parse_value(value)
-            }),
-            _ => {
-                println!("brub");
-                exit(2);
-            }
-        })))
+        if statement.contains("if") {
+            let (label, condition) = jmp(statement).unwrap().1;
+            let expression = format!("{}\0", &condition);
+            let (comparison, register, value) = cond(&expression).unwrap().1;
+            Some(ast::Module::Statement(ast::Statement::Jump(match comparison {
+                "!=" => Jump::Jne(String::from(label), Condition {
+                    register: match_register_str(&register[1..]),
+                    value: parse_value(value),
+                }),
+                "==" => Jump::Je(String::from(label), Condition {
+                    register: match_register_str(&register[1..]),
+                    value: parse_value(value),
+                }),
+                _ => {
+                    println!("invalid jump condition");
+                    exit(2);
+                }
+            })))
+        } else {
+            let label = statement.split(" ").collect::<Vec<&str>>()[1];
+            Some(ast::Module::Statement(ast::Statement::Jump(Jump::Jmp(label))))
+        }
+
     } else if statement.starts_with("!") {
         Some(ast::Module::Raw(String::from(&statement[1..])))
+    } else if statement.starts_with("const ") {
+        Some(ast::Module::Statement(ast::Statement::Constant(String::from(&statement[6..]))))
+    } else if statement.starts_with("reserve") {
+
     } else {
         println!("could not parse: {}", statement);
         None

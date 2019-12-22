@@ -25,6 +25,9 @@ pub fn compile(root_ast: Vec<ast::Module>) ->(Vec<String>, Vec<String>) {
                             structures::Jump::Je(label, condition) => {
                                 asm.push(format!("cmp {}, {}", syntax::match_register_enum(condition.register), syntax::get_value(condition.value)));
                                 asm.push(format!("je {}", label))
+                            },
+                            structures::Jump::Jmp(label) => {
+                                asm.push(format!("jmp {}", label))
                             }
                         }
                     }
@@ -41,14 +44,37 @@ pub fn compile(root_ast: Vec<ast::Module>) ->(Vec<String>, Vec<String>) {
 
                             },
                             structures::Assignee::MemoryAddress(address, register) => {
-                                let register = syntax::match_register_enum(register);
-                                asm.push(format!("mov {}, {}", register, syntax::get_value(assignment.value)));
-                                asm.push(format!("mov [{}], {}", address.to_string(), register));
+                                match register {
+                                    structures::Registers::None => {
+                                        asm.push(format!("mov [{}], {}", address, syntax::get_value(assignment.value)))
+                                    },
+                                    _ => {
+                                        let register = syntax::match_register_enum(register);
+                                        asm.push(format!("mov {}, {}", register, syntax::get_value(assignment.value)));
+                                        asm.push(format!("mov [{}], {}", address.to_string(), register));
+                                    }
+                                }
+
+                            },
+                            structures::Assignee::Label(label, register) => {
+                                match register {
+                                    structures::Registers::None => {
+                                        asm.push(format!("mov [{}], {}", label, syntax::get_value(assignment.value)));
+                                    },
+                                    _ => {
+                                        let register = syntax::match_register_enum(register);
+                                        asm.push(format!("mov {}, {}", register, syntax::get_value(assignment.value)));
+                                        asm.push(format!("mov [{}], {}", label, register));
+                                    }
+                                }
                             }
                         }
                     },
                     ast::Statement::Increment(register) => {
                         asm.push(format!("inc {}", syntax::match_register_enum(register)))
+                    },
+                    ast::Statement::Constant(constant) => {
+                        asm.push(format!("db {}", constant))
                     }
                     _ => {}
                 }
