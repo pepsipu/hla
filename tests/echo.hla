@@ -1,0 +1,32 @@
+!section .bss
+input_buffer:
+reserve[32]
+
+!section .data
+welcome_message:
+const "Hello! Please input some text.", 0xa
+
+!section .text
+
+@_start:
+    ; write the welcome message
+    $eax = 4
+    $ebx = 1
+    $ecx = welcome_message
+    $edx = 31
+    !int 0x80
+
+    *input_buffer ($edi) = 0xdeadbeef
+
+    ; read input into buffer
+    $eax = 3
+    $ebx = 0
+    $ecx = input_buffer
+    $edx = 32
+    !int 0x80
+
+    $edx = $eax
+    $eax = 4
+    $ebx = 1
+    $ecx = input_buffer
+    !int 0x80

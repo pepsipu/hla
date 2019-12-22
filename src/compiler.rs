@@ -75,6 +75,9 @@ pub fn compile(root_ast: Vec<ast::Module>) ->(Vec<String>, Vec<String>) {
                     },
                     ast::Statement::Constant(constant) => {
                         asm.push(format!("db {}", constant))
+                    },
+                    ast::Statement::Reserve(bytes) => {
+                        asm.push(format!("resb {}", bytes.to_string()))
                     }
                     _ => {}
                 }

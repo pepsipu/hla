@@ -1,2 +1,2 @@
-nasm -f elf32 test.S
-ld test.o -m elf_i386
+nasm -f elf32 $1
+ld $2 -m elf_i386

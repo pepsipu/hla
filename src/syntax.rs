@@ -26,6 +26,17 @@ named!(cond<&str, (&str, &str, &str)>,
     )
 );
 
+fn is_not_label(x: char) -> bool {
+    x == '(' || x == '\0'
+}
+
+named!(read_label<&str, &str>,
+    do_parse!(
+        label: take_till!(is_not_label) >>
+        (label.trim())
+    )
+);
+
 named!(jmp<&str, (&str, &str)>,
     do_parse!(
         ws!(take_until!(" ")) >>
@@ -48,7 +59,10 @@ named!(mem_write<&str, (&str, &str)>,
 
 named!(resv<&str, u32>,
     do_parse!(
-
+        take_until!("[") >>
+        take!(1) >>
+        value: take_until!("]") >>
+        (value.parse::<u32>().unwrap())
     )
 );
 
@@ -79,6 +93,9 @@ pub fn get_value(data: Data) -> String {
         }
         Data::Label(label) => {
             label
+        },
+        Data::Register(register) => {
+            String::from(match_register_enum(register))
         }
         _ => {
             println!("data {:?} be like: not parsable", data);
@@ -98,21 +115,22 @@ pub fn match_register_enum(register: Registers) -> &'static str {
         Registers::ESP => "esp",
         Registers::EBP => "ebp",
         Registers::None => {
-            println!("register cannot be none")
+            println!("register cannot be none");
+            exit(2)
         }
     }
 }
 
 pub fn parse_numerical(string_value: &str) -> Option<u32> {
-    let mut data: Option<u32> = None;
     if string_value.starts_with("0x") {
-        data = Some(u32::from_str_radix(&string_value[2..], 16).unwrap())
+        Some(u32::from_str_radix(&string_value[2..], 16).unwrap())
     } else if string_value.starts_with("0b") {
-        data = Some(u32::from_str_radix(&string_value[2..], 2).unwrap())
+        Some(u32::from_str_radix(&string_value[2..], 2).unwrap())
     } else if string_value.parse::<u32>().is_ok() {
-        data = Some(string_value.parse::<u32>().unwrap())
+        Some(string_value.parse::<u32>().unwrap())
+    } else {
+        None
     }
-    data
 }
 
 pub fn parse_value(string_value: &str) -> Data {
@@ -145,11 +163,13 @@ pub fn parse_assign(assignment: &str) -> Assignment {
         "$" => Assignee::Register(match_register_str(string_assignment)),
         "*" => {
             let labels = crate::LABELS.lock().unwrap();
-            let str_value = String::from(&string_assignment[1..]);
-            if labels.contains(&str_value) {
+            let str_value = String::from(string_assignment);
+            let formatted_read_label = format!("{}\0", str_value);
+            let parsed_label = read_label(&formatted_read_label);
+            if labels.contains(&String::from(parsed_label.unwrap().1)) {
                 if str_value.contains("$") {
                     let (label, register) = mem_write(&string_assignment).unwrap().1;
-                    Assignee::Label(String::from(label), match_register_str(register))
+                    Assignee::Label(String::from(label), match_register_str(&register[1..]))
                 } else {
                     Assignee::Label(str_value, Registers::None)
                 }
@@ -209,7 +229,7 @@ pub fn parse(statement: &str) -> Option<ast::Module> {
             })))
         } else {
             let label = statement.split(" ").collect::<Vec<&str>>()[1];
-            Some(ast::Module::Statement(ast::Statement::Jump(Jump::Jmp(label))))
+            Some(ast::Module::Statement(ast::Statement::Jump(Jump::Jmp(String::from(label)))))
         }
 
     } else if statement.starts_with("!") {
@@ -217,7 +237,7 @@ pub fn parse(statement: &str) -> Option<ast::Module> {
     } else if statement.starts_with("const ") {
         Some(ast::Module::Statement(ast::Statement::Constant(String::from(&statement[6..]))))
     } else if statement.starts_with("reserve") {
-
+        Some(ast::Module::Statement(ast::Statement::Reserve(resv(statement).unwrap().1)))
     } else {
         println!("could not parse: {}", statement);
         None
