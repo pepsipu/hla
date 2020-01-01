@@ -1,5 +1,42 @@
 # hla
-HLA stands for High Level Assembler. It is a compiler/assembler which assembles a easy to read version of assembly into i386 assembly ready to run. This was made to make making operating system boot loaders easier to understand.
+HLA stands for High Level Assembler. It is a compiler/assembler which assembles a easy to read version of assembly into i386 assembly ready to run. HLA allows new Assembly programmers a easier way to learn Assembly by making the language more readable, without removing the complexity of Assembly.
+
+Here's an example of an HLA program that echos the input it reads.
+
+```asm
+!section .bss
+input_buffer:
+reserve[32]
+
+!section .data
+welcome_message:
+const "Hello! Please input some text.", 0xa
+
+!section .text
+
+@_start:
+    ; write the welcome message
+    $eax = 4
+    $ebx = 1
+    $ecx = welcome_message
+    $edx = 31
+    !int 0x80
+
+    *input_buffer ($edi) = 0xdeadbeef
+
+    ; read input into buffer
+    $eax = 3
+    $ebx = 0
+    $ecx = input_buffer
+    $edx = 32
+    !int 0x80
+
+    $edx = $eax
+    $eax = 4
+    $ebx = 1
+    $ecx = input_buffer
+    !int 0x80
+```
 
 ## Syntax
 
